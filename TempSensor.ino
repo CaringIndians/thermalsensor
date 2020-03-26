@@ -186,7 +186,7 @@ class MovingAverage {
   public:
     MovingAverage() {
       m_values = new int[averagingWindow];
-      m_rotating_counter = new RotatingCounter(10);
+      m_rotating_counter = new RotatingCounter(averagingWindow);
     }
     int getAverage(){
       if (m_rotating_counter->isFirstPass() == false) {
