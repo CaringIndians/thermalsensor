@@ -142,27 +142,102 @@ uint16_t MLX90614::read16(uint8_t a) {
 
 MLX90614 mlx = MLX90614();
 
+const int refreshTempReading = 500;
+const int averagingWindow = 10;
+
 // initialize the library by associating any needed LCD interface pin
 // with the arduino pin number it is connected to
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
+class RotatingCounter {
+  private:
+  	int m_counter = 0;
+    bool m_first_pass = true;
+  	int m_max_value = 0;
+  public:
+  	RotatingCounter(int max_value) {
+      m_max_value = max_value;
+    }
+  	void resetCounter(){
+      m_counter = 0;
+      m_first_pass = true;
+    }
+    void increment(){
+      m_counter++;
+      if (m_counter > m_max_value){
+        m_counter = 0;
+        m_first_pass = false;
+      }
+    }
+    int isFirstPass() {
+      return m_first_pass;
+    }
+    int getCounterValue() {
+      return m_counter;
+    }
+};
+
+class MovingAverage {
+  private:
+  	int * m_values;
+    long m_sum = 0;
+    RotatingCounter * m_rotating_counter;
+  public:
+    MovingAverage() {
+      m_values = new int[averagingWindow];
+      m_rotating_counter = new RotatingCounter(10);
+    }
+    int getAverage(){
+      if (m_rotating_counter->isFirstPass() == false) {
+        return m_sum/averagingWindow;
+       }
+      else {
+        return m_sum/m_rotating_counter->getCounterValue();
+      }
+    }
+    void pushValue(int value){
+      int pos = m_rotating_counter->getCounterValue();
+      m_sum = m_sum - m_values[pos];
+      m_values[pos] = value;
+      m_sum = m_sum + value;
+      m_rotating_counter->increment();
+    }
+};
+
 void setup() {
   mlx.begin();
   // set up the LCD's number of columns and rows:
-  lcd.begin(16, 2);
+  lcd.begin(16, 2); 
   lcd.home ();
 }
 
+
+// TODO(krishnadurai): Temperature readings and MovingAverages
+// are typed in `int`. We may need to move to a `float` based type.
 void loop() {
+  MovingAverage avg_celsius;
+  MovingAverage avg_fahrenheit;
+  
+  // Get temperature readings
+  int temp_celcius = mlx.readObjectTempC();
+  int temp_fahrenheit = mlx.readObjectTempF();
+
+  // Populate temperature values for moving average
+  avg_celsius.pushValue(temp_celcius);
+  avg_fahrenheit.pushValue(temp_fahrenheit);
+
   // Turn off the display:
   lcd.noDisplay();
-  delay(500);
+  delay(refreshTempReading);
+
   // Turn on the display:
   lcd.setCursor(0,0);
-  lcd.print("Target ");
-  lcd.print(mlx.readObjectTempC());
+  lcd.print(avg_celsius.getAverage());
   lcd.print(" C");
+  lcd.setCursor(0,1);
+  lcd.print(avg_fahrenheit.getAverage());
+  lcd.print(" F");
   lcd.display();
-  delay(500);
+  delay(refreshTempReading);
 }
