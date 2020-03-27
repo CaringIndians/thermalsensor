@@ -142,8 +142,11 @@ uint16_t MLX90614::read16(uint8_t a) {
 
 MLX90614 mlx = MLX90614();
 
-const int refreshTempReading = 500;
+// feature flags
+const int flagMovingAverageEnable = false;
+
 const int averagingWindow = 10;
+const int refreshTempReading = 500;
 
 // initialize the library by associating any needed LCD interface pin
 // with the arduino pin number it is connected to
@@ -224,19 +227,30 @@ void loop() {
   int temp_fahrenheit = mlx.readObjectTempF();
 
   // Populate temperature values for moving average
-  avg_celsius.pushValue(temp_celcius);
-  avg_fahrenheit.pushValue(temp_fahrenheit);
-
+  if (flagMovingAverageEnable == true) {
+    avg_celsius.pushValue(temp_celcius);
+    avg_fahrenheit.pushValue(temp_fahrenheit);
+  }
   // Turn off the display:
   lcd.noDisplay();
   delay(refreshTempReading);
 
   // Turn on the display:
   lcd.setCursor(0,0);
-  lcd.print(avg_celsius.getAverage());
+  if (flagMovingAverageEnable == true) {
+    lcd.print(avg_celsius.getAverage());
+  }
+  else {
+    lcd.print(temp_celcius);
+  }
   lcd.print(" C");
   lcd.setCursor(0,1);
-  lcd.print(avg_fahrenheit.getAverage());
+  if (flagMovingAverageEnable == true) {
+    lcd.print(avg_fahrenheit.getAverage());
+  }
+  else{
+    lcd.print(temp_fahrenheit);
+  }
   lcd.print(" F");
   lcd.display();
   delay(refreshTempReading);
