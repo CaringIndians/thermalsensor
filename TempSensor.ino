@@ -147,7 +147,8 @@ MLX90614 mlx = MLX90614();
 // feature flags
 const int flagMovingAverageEnable = false;
 
-const int refreshTempReading = 500;
+const int refreshTempReading = 200;
+const bool triggerState = true;
 
 // initialize the library by associating any needed LCD interface pin
 // with the arduino pin number it is connected to
@@ -224,49 +225,41 @@ MovingAverage avg_celsius;
 MovingAverage avg_fahrenheit;
 
 void loop() {
-  // Turn off the display:
-  lcd.noDisplay();
-  delay(refreshTempReading);
+  int temp_celcius;
+  int temp_fahrenheit;
 
-  // Get temperature readings
-  int temp_celcius = mlx.readObjectTempC();
-  int temp_fahrenheit = mlx.readObjectTempF();
+  switch (triggerState){
+    case true:
+      // Get temperature readings
+      temp_celcius = mlx.readObjectTempC();
+      temp_fahrenheit = mlx.readObjectTempF();
+      // Populate temperature values for moving average
+      if (flagMovingAverageEnable == true) {
+        avg_celsius.pushValue(temp_celcius);
+        avg_fahrenheit.pushValue(temp_fahrenheit);
+      }
 
-  // Populate temperature values for moving average
-  avg_celsius.pushValue(temp_celcius);
-  avg_fahrenheit.pushValue(temp_fahrenheit);
-
-  // Turn off the display:
-  lcd.noDisplay();
-  delay(refreshTempReading);
-
-  // Get temperature readings
-  int temp_celcius = mlx.readObjectTempC();
-  int temp_fahrenheit = mlx.readObjectTempF();
-
-  // Populate temperature values for moving average
-  if (flagMovingAverageEnable == true) {
-    avg_celsius.pushValue(temp_celcius);
-    avg_fahrenheit.pushValue(temp_fahrenheit);
+      lcd.setCursor(0,0);
+      if (flagMovingAverageEnable == true) {
+        lcd.print(avg_celsius.getAverage());
+      }
+      else {
+        lcd.print(temp_celcius);
+      }
+      lcd.print(" C");
+      lcd.setCursor(0,1);
+      if (flagMovingAverageEnable == true) {
+        lcd.print(avg_fahrenheit.getAverage());
+      }
+      else{
+        lcd.print(temp_fahrenheit);
+      }
+      lcd.print(" F");
+      lcd.display();
+      break;
+    case false:
+      lcd.noDisplay();
+      break;
   }
-
-  // Turn on the display:
-  lcd.setCursor(0,0);
-  if (flagMovingAverageEnable == true) {
-    lcd.print(avg_celsius.getAverage());
-  }
-  else {
-    lcd.print(temp_celcius);
-  }
-  lcd.print(" C");
-  lcd.setCursor(0,1);
-  if (flagMovingAverageEnable == true) {
-    lcd.print(avg_fahrenheit.getAverage());
-  }
-  else{
-    lcd.print(temp_fahrenheit);
-  }
-  lcd.print(" F");
-  lcd.display();
   delay(refreshTempReading);
 }
