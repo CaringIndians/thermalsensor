@@ -224,9 +224,10 @@ MovingAverage avg_celsius;
 MovingAverage avg_fahrenheit;
 
 void loop() {
-  MovingAverage avg_celsius;
-  MovingAverage avg_fahrenheit;
-  
+  // Turn off the display:
+  lcd.noDisplay();
+  delay(refreshTempReading);
+
   // Get temperature readings
   int temp_celcius = mlx.readObjectTempC();
   int temp_fahrenheit = mlx.readObjectTempF();
