@@ -13,23 +13,27 @@ The draw.io diagram is hosted [here](https://app.diagrams.net/?state=%7B%22folde
 ## Hardware Configuration
 
 # Thermal Sensor
-Vendor: Melexis
-Part No: MLX90614
+**Vendor:** Melexis
+**Part No:** MLX90614
 
 Interface with Arduino: I2C aka Two Wire Interface
-Arduino Pins: A4/A5
+
+**Arduino Pins:** A4/A5
 
 # User Trigger
 User trigger is a digital input with a pull-up resistor. When the button is pressed the signal goes low.
-Arduino Pin: D2
 
-Note: If this pin is multiplexed to Interrupt (INTx), then we can use the trigger to wake-up the device
+**Arduino Pin:** D2
+
+**Note: If this pin is multiplexed to Interrupt (INTx), then we can use the trigger to wake-up the device**
 
 # LCD Display
-Vendor: Generic
-Part Details: 16x2 Character LCD with Hitachi Controller (HD44780) and Backlight LED
+**Vendor:** Generic
 
-Interface with Arduino: 9x Digital Outputs (Bit Banging)
+**Part Details:** 16x2 Character LCD with Hitachi Controller (HD44780) and Backlight LED
+
+**Interface with Arduino:** 9x Digital Outputs (Bit Banging)
+
 Pin Details are as given below:
 
 | Arduino Pin | LCD Pin/Function   | High                       | Low                         |
@@ -44,9 +48,10 @@ Pin Details are as given below:
 | D11         | Brightness Control | Backlight On               | Backlight Off               |
 
 
-Note: Pin D3 can be multiplexed PWM OC0. AnalogWrite will work on this pin
+**Note: Pin D3 can be multiplexed PWM OC0. AnalogWrite will work on this pin**
 
 # Serial Interface
 Serial Interface is exposed for debugging and calibration
-Pins: D0/RX and D1/Tx
+
+**Pins:** D0/RX and D1/Tx
 
