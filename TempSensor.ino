@@ -23,6 +23,8 @@
 // include the library code:
 #include <LiquidCrystal.h>
 
+#define AVERAGING_WINDOW 10
+
 // taken from https://github.com/adafruit/Adafruit-MLX90614-Library
 // TODO (krishnadurai): Comply with license
 #if (ARDUINO >= 100)
@@ -145,7 +147,6 @@ MLX90614 mlx = MLX90614();
 // feature flags
 const int flagMovingAverageEnable = false;
 
-const int averagingWindow = 10;
 const int refreshTempReading = 500;
 
 // initialize the library by associating any needed LCD interface pin
@@ -159,7 +160,7 @@ class RotatingCounter {
     bool m_first_pass = true;
   	int m_max_value = 0;
   public:
-  	RotatingCounter(int max_value) {
+    void setMaxValue(int max_value) {
       m_max_value = max_value;
     }
   	void resetCounter(){
@@ -168,7 +169,7 @@ class RotatingCounter {
     }
     void increment(){
       m_counter++;
-      if (m_counter > m_max_value){
+      if (m_counter >= m_max_value){
         m_counter = 0;
         m_first_pass = false;
       }
@@ -183,28 +184,31 @@ class RotatingCounter {
 
 class MovingAverage {
   private:
-  	int * m_values;
     long m_sum = 0;
-    RotatingCounter * m_rotating_counter;
+    int m_values[AVERAGING_WINDOW];
+    RotatingCounter m_rotating_counter;
   public:
     MovingAverage() {
-      m_values = new int[averagingWindow];
-      m_rotating_counter = new RotatingCounter(averagingWindow);
+      m_rotating_counter.setMaxValue(AVERAGING_WINDOW);
     }
     int getAverage(){
-      if (m_rotating_counter->isFirstPass() == false) {
-        return m_sum/averagingWindow;
-       }
+      if (m_rotating_counter.isFirstPass() == false) {
+        return m_sum/AVERAGING_WINDOW;
+      }
       else {
-        return m_sum/m_rotating_counter->getCounterValue();
+        int count = m_rotating_counter.getCounterValue();
+        if (count == 0) {
+          return 0;
+        }
+        return m_sum/count;
       }
     }
     void pushValue(int value){
-      int pos = m_rotating_counter->getCounterValue();
+      int pos = m_rotating_counter.getCounterValue();
       m_sum = m_sum - m_values[pos];
       m_values[pos] = value;
       m_sum = m_sum + value;
-      m_rotating_counter->increment();
+      m_rotating_counter.increment();
     }
 };
 
@@ -216,12 +220,14 @@ void setup() {
 }
 
 
-// TODO(krishnadurai): Temperature readings and MovingAverages
-// are typed in `int`. We may need to move to a `float` based type.
+MovingAverage avg_celsius;
+MovingAverage avg_fahrenheit;
+
 void loop() {
-  MovingAverage avg_celsius;
-  MovingAverage avg_fahrenheit;
-  
+  // Turn off the display:
+  lcd.noDisplay();
+  delay(refreshTempReading);
+
   // Get temperature readings
   int temp_celcius = mlx.readObjectTempC();
   int temp_fahrenheit = mlx.readObjectTempF();
@@ -231,9 +237,6 @@ void loop() {
     avg_celsius.pushValue(temp_celcius);
     avg_fahrenheit.pushValue(temp_fahrenheit);
   }
-  // Turn off the display:
-  lcd.noDisplay();
-  delay(refreshTempReading);
 
   // Turn on the display:
   lcd.setCursor(0,0);
