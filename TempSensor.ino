@@ -23,6 +23,8 @@
 // include the library code:
 #include <LiquidCrystal.h>
 
+#define AVERAGING_WINDOW 10
+
 // taken from https://github.com/adafruit/Adafruit-MLX90614-Library
 // TODO (krishnadurai): Comply with license
 #if (ARDUINO >= 100)
@@ -142,27 +144,117 @@ uint16_t MLX90614::read16(uint8_t a) {
 
 MLX90614 mlx = MLX90614();
 
+// feature flags
+const int flagMovingAverageEnable = false;
+
+const int refreshTempReading = 500;
+
 // initialize the library by associating any needed LCD interface pin
 // with the arduino pin number it is connected to
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
+class RotatingCounter {
+  private:
+  	int m_counter = 0;
+    bool m_first_pass = true;
+  	int m_max_value = 0;
+  public:
+    void setMaxValue(int max_value) {
+      m_max_value = max_value;
+    }
+  	void resetCounter(){
+      m_counter = 0;
+      m_first_pass = true;
+    }
+    void increment(){
+      m_counter++;
+      if (m_counter >= m_max_value){
+        m_counter = 0;
+        m_first_pass = false;
+      }
+    }
+    int isFirstPass() {
+      return m_first_pass;
+    }
+    int getCounterValue() {
+      return m_counter;
+    }
+};
+
+class MovingAverage {
+  private:
+    long m_sum = 0;
+    int m_values[AVERAGING_WINDOW];
+    RotatingCounter m_rotating_counter;
+  public:
+    MovingAverage() {
+      m_rotating_counter.setMaxValue(AVERAGING_WINDOW);
+    }
+    int getAverage(){
+      if (m_rotating_counter.isFirstPass() == false) {
+        return m_sum/AVERAGING_WINDOW;
+      }
+      else {
+        int count = m_rotating_counter.getCounterValue();
+        if (count == 0) {
+          return 0;
+        }
+        return m_sum/count;
+      }
+    }
+    void pushValue(int value){
+      int pos = m_rotating_counter.getCounterValue();
+      m_sum = m_sum - m_values[pos];
+      m_values[pos] = value;
+      m_sum = m_sum + value;
+      m_rotating_counter.increment();
+    }
+};
+
 void setup() {
   mlx.begin();
   // set up the LCD's number of columns and rows:
-  lcd.begin(16, 2);
+  lcd.begin(16, 2); 
   lcd.home ();
 }
+
+
+MovingAverage avg_celsius;
+MovingAverage avg_fahrenheit;
 
 void loop() {
   // Turn off the display:
   lcd.noDisplay();
-  delay(500);
+  delay(refreshTempReading);
+
+  // Get temperature readings
+  int temp_celcius = mlx.readObjectTempC();
+  int temp_fahrenheit = mlx.readObjectTempF();
+
+  // Populate temperature values for moving average
+  if (flagMovingAverageEnable == true) {
+    avg_celsius.pushValue(temp_celcius);
+    avg_fahrenheit.pushValue(temp_fahrenheit);
+  }
+
   // Turn on the display:
   lcd.setCursor(0,0);
-  lcd.print("Target ");
-  lcd.print(mlx.readObjectTempC());
+  if (flagMovingAverageEnable == true) {
+    lcd.print(avg_celsius.getAverage());
+  }
+  else {
+    lcd.print(temp_celcius);
+  }
   lcd.print(" C");
+  lcd.setCursor(0,1);
+  if (flagMovingAverageEnable == true) {
+    lcd.print(avg_fahrenheit.getAverage());
+  }
+  else{
+    lcd.print(temp_fahrenheit);
+  }
+  lcd.print(" F");
   lcd.display();
-  delay(500);
+  delay(refreshTempReading);
 }
