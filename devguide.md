@@ -41,8 +41,8 @@ Pin Details are as given below:
 | D3          | Backlight Control  | Backlight On               | Backlight Off               |
 | D4          | D7                 | 1                          | 0                           |
 | D5          | D6                 | 1                          | 0                           |
-| D5          | D5                 | 1                          | 0                           |
-| D6          | D4                 | 1                          | 0                           |
+| D6          | D5                 | 1                          | 0                           |
+| D7          | D4                 | 1                          | 0                           |
 | D9          | Enable             | LCD Register Access Enable | LCD Register Access Disable |
 | D10         | Register Select    | 1                          | 0                           |
 | D11         | Brightness Control | Backlight On               | Backlight Off               |

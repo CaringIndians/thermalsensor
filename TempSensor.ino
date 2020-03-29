@@ -144,15 +144,97 @@ uint16_t MLX90614::read16(uint8_t a) {
 
 MLX90614 mlx = MLX90614();
 
-// feature flags
-const int flagMovingAverageEnable = false;
+// lcd constants
+#define LCD_BRIGHTNESS_HIGH 1
+#define LCD_BRIGHTNESS_LOW 0
 
-const int refreshTempReading = 500;
+// lcd pins
+#define LCD_RS_PIN 10
+#define LCD_EN_PIN 9
+#define LCD_D4_PIN 7
+#define LCD_D5_PIN 6
+#define LCD_D6_PIN 5
+#define LCD_D7_PIN 4
+#define LCD_BL_PIN 3
+#define LCD_BR_PIN 11
+
+// trigger pins
+#define TRIGGER_PIN 2
+
+// laser pins
+#define LASER_PIN 8
+
+// operational settings
+#define REFRESH_TEMP_READING 200
+
+// feature flags
+#define FLAG_MOVING_AVG_ENABLE false
+
+class LiquidCrystalBacklight{
+  private:
+    uint8_t _backlight_pin;
+    uint8_t _brightness_pin;
+  public:
+    LiquidCrystalBacklight(uint8_t bl, uint8_t br)
+    {
+      _backlight_pin = bl;
+      _brightness_pin = br;
+    }
+
+    void display(){
+      digitalWrite(_backlight_pin, HIGH);
+      analogWrite(_brightness_pin, LCD_BRIGHTNESS_HIGH);
+    }
+    void noDisplay(){
+      digitalWrite(_backlight_pin, LOW);
+      analogWrite(_brightness_pin, LCD_BRIGHTNESS_LOW);
+    }
+};
+
+class Trigger {
+  public:
+    void begin(){
+      pinMode(TRIGGER_PIN, INPUT);
+      digitalWrite(TRIGGER_PIN, HIGH);
+    }
+    bool readTriggerStatus(){
+      return digitalRead(TRIGGER_PIN);
+    }
+};
+
+class Laser {
+  public:
+    void begin(){
+      pinMode(LASER_PIN, OUTPUT);
+    }
+    void on(){
+      digitalWrite(LASER_PIN, HIGH);
+    }
+    void off(){
+      digitalWrite(LASER_PIN, LOW);
+    }
+};
+
+// initialize trigger
+Trigger trigger;
+
+// initialize laser
+Laser laser;
 
 // initialize the library by associating any needed LCD interface pin
 // with the arduino pin number it is connected to
-const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+LiquidCrystal lcd(
+  LCD_RS_PIN,
+  LCD_EN_PIN,
+  LCD_D4_PIN,
+  LCD_D5_PIN,
+  LCD_D6_PIN,
+  LCD_D7_PIN
+);
+LiquidCrystalBacklight lcd_backlight(
+  LCD_BL_PIN,
+  LCD_BR_PIN
+);
 
 class RotatingCounter {
   private:
@@ -210,13 +292,21 @@ class MovingAverage {
       m_sum = m_sum + value;
       m_rotating_counter.increment();
     }
+    void reset(){
+      m_rotating_counter.resetCounter();
+    }
 };
 
 void setup() {
+  // set up trigger button
+  trigger.begin();
+  // set up laser
+  laser.begin();
+  // set up IR sensor
   mlx.begin();
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2); 
-  lcd.home ();
+  lcd.home();
 }
 
 
@@ -224,37 +314,51 @@ MovingAverage avg_celsius;
 MovingAverage avg_fahrenheit;
 
 void loop() {
-  // Turn off the display:
-  lcd.noDisplay();
-  delay(refreshTempReading);
+  int temp_celcius;
+  int temp_fahrenheit;
 
-  // Get temperature readings
-  int temp_celcius = mlx.readObjectTempC();
-  int temp_fahrenheit = mlx.readObjectTempF();
+  switch (trigger.readTriggerStatus()){
+    case LOW:
+      // Start laser
+      laser.on();
 
-  // Populate temperature values for moving average
-  if (flagMovingAverageEnable == true) {
-    avg_celsius.pushValue(temp_celcius);
-    avg_fahrenheit.pushValue(temp_fahrenheit);
-  }
+      // Get temperature readings
+      temp_celcius = mlx.readObjectTempC();
+      temp_fahrenheit = mlx.readObjectTempF();
+      // Populate temperature values for moving average
+      if (FLAG_MOVING_AVG_ENABLE == true) {
+        avg_celsius.pushValue(temp_celcius);
+        avg_fahrenheit.pushValue(temp_fahrenheit);
+      }
 
-  // Turn on the display:
-  lcd.setCursor(0,0);
-  if (flagMovingAverageEnable == true) {
-    lcd.print(avg_celsius.getAverage());
+      lcd.setCursor(0,0);
+      if (FLAG_MOVING_AVG_ENABLE == true) {
+        lcd.print(avg_celsius.getAverage());
+      }
+      else {
+        lcd.print(temp_celcius);
+      }
+      lcd.print(" C");
+      lcd.setCursor(0,1);
+      if (FLAG_MOVING_AVG_ENABLE == true) {
+        lcd.print(avg_fahrenheit.getAverage());
+      }
+      else{
+        lcd.print(temp_fahrenheit);
+      }
+      lcd.print(" F");
+      lcd_backlight.display();
+      lcd.display();
+      break;
+    case HIGH:
+      laser.off();
+      if (FLAG_MOVING_AVG_ENABLE == true) {
+        avg_celsius.reset();
+        avg_fahrenheit.reset();
+      }
+      lcd_backlight.noDisplay();
+      lcd.noDisplay();
+      break;
   }
-  else {
-    lcd.print(temp_celcius);
-  }
-  lcd.print(" C");
-  lcd.setCursor(0,1);
-  if (flagMovingAverageEnable == true) {
-    lcd.print(avg_fahrenheit.getAverage());
-  }
-  else{
-    lcd.print(temp_fahrenheit);
-  }
-  lcd.print(" F");
-  lcd.display();
-  delay(refreshTempReading);
+  delay(REFRESH_TEMP_READING);
 }
