@@ -147,6 +147,7 @@ MLX90614 mlx = MLX90614();
 // lcd constants
 #define LCD_BRIGHTNESS_HIGH 1
 #define LCD_BRIGHTNESS_LOW 0
+#define LCD_TEMP_PRECISION 2
 
 // lcd pins
 #define LCD_RS_PIN 10
@@ -266,15 +267,15 @@ class RotatingCounter {
 
 class MovingAverage {
   private:
-    long m_sum = 0;
-    int m_values[AVERAGING_WINDOW];
+    double m_sum = 0;
+    float m_values[AVERAGING_WINDOW];
     RotatingCounter m_rotating_counter;
   public:
     MovingAverage() {
       m_rotating_counter.setMaxValue(AVERAGING_WINDOW);
     }
-    int getAverage(){
-      if (m_rotating_counter.isFirstPass() == false) {
+    float getAverage(){
+      if (m_rotating_counter.isFirstPass()) {
         return m_sum/AVERAGING_WINDOW;
       }
       else {
@@ -285,7 +286,7 @@ class MovingAverage {
         return m_sum/count;
       }
     }
-    void pushValue(int value){
+    void pushValue(float value){
       int pos = m_rotating_counter.getCounterValue();
       m_sum = m_sum - m_values[pos];
       m_values[pos] = value;
@@ -314,8 +315,8 @@ MovingAverage avg_celsius;
 MovingAverage avg_fahrenheit;
 
 void loop() {
-  int temp_celcius;
-  int temp_fahrenheit;
+  float temp_celcius;
+  float temp_fahrenheit;
 
   switch (trigger.readTriggerStatus()){
     case LOW:
@@ -326,25 +327,25 @@ void loop() {
       temp_celcius = mlx.readObjectTempC();
       temp_fahrenheit = mlx.readObjectTempF();
       // Populate temperature values for moving average
-      if (FLAG_MOVING_AVG_ENABLE == true) {
+      if (FLAG_MOVING_AVG_ENABLE) {
         avg_celsius.pushValue(temp_celcius);
         avg_fahrenheit.pushValue(temp_fahrenheit);
       }
 
       lcd.setCursor(0,0);
-      if (FLAG_MOVING_AVG_ENABLE == true) {
-        lcd.print(avg_celsius.getAverage());
+      if (FLAG_MOVING_AVG_ENABLE) {
+        lcd.print(avg_celsius.getAverage(), LCD_TEMP_PRECISION);
       }
       else {
-        lcd.print(temp_celcius);
+        lcd.print(temp_celcius, LCD_TEMP_PRECISION);
       }
       lcd.print(" C");
       lcd.setCursor(0,1);
-      if (FLAG_MOVING_AVG_ENABLE == true) {
-        lcd.print(avg_fahrenheit.getAverage());
+      if (FLAG_MOVING_AVG_ENABLE) {
+        lcd.print(avg_fahrenheit.getAverage(), LCD_TEMP_PRECISION);
       }
       else{
-        lcd.print(temp_fahrenheit);
+        lcd.print(temp_fahrenheit, LCD_TEMP_PRECISION);
       }
       lcd.print(" F");
       lcd_backlight.display();
@@ -352,7 +353,7 @@ void loop() {
       break;
     case HIGH:
       laser.off();
-      if (FLAG_MOVING_AVG_ENABLE == true) {
+      if (FLAG_MOVING_AVG_ENABLE) {
         avg_celsius.reset();
         avg_fahrenheit.reset();
       }
