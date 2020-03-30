@@ -22,8 +22,61 @@
 
 // include the library code:
 #include <LiquidCrystal.h>
+#include <math.h>
 
-#define AVERAGING_WINDOW 10
+#if (ARDUINO >= 100)
+    #include "Arduino.h"
+#else
+    #include "WProgram.h"
+#endif
+
+#define CRC8_DEFAULTPOLY  7
+
+// taken from https://github.com/jfitter/MLX90614
+// TODO (krishnadurai): Comply with license
+class CRC8 {
+  public:
+    CRC8(uint8_t polynomial = CRC8_DEFAULTPOLY);
+    uint8_t  crc8(void);
+    uint8_t  crc8(uint8_t data);
+    void     crc8Start(uint8_t poly);
+  private:
+    uint8_t  _crc;
+    uint8_t  _poly;
+};
+/**
+ *  \brief            CRC8 class constructor.
+ *  \param [in] poly  8 bit CRC polynomial to use.
+ */
+CRC8::CRC8(uint8_t poly) {crc8Start(poly);}
+
+/**
+ *  \brief            Return the current value of the CRC.
+ *  \return           8 bit CRC current value.
+ */
+uint8_t CRC8::crc8(void) {return _crc;}
+
+/**
+ *  \brief            Update the current value of the CRC.
+ *  \param [in] data  New 8 bit data to be added to the CRC.
+ *  \return           8 bit CRC current value.
+ */
+uint8_t CRC8::crc8(uint8_t data) {
+    uint8_t i = 8;
+
+    _crc ^= data;
+    while(i--) _crc = _crc & 0x80 ? (_crc << 1) ^ _poly : _crc << 1;
+    return _crc;
+}
+
+/**
+ *  \brief            Initialize the CRC8 object.
+ *  \param [in] poly  8 bit CRC polynomial to use.
+ */
+void CRC8::crc8Start(uint8_t poly) {
+    _poly = poly;
+    _crc = 0;
+}
 
 // taken from https://github.com/adafruit/Adafruit-MLX90614-Library
 // TODO (krishnadurai): Comply with license
@@ -55,6 +108,8 @@
 #define MLX90614_ID2 0x3D
 #define MLX90614_ID3 0x3E
 #define MLX90614_ID4 0x3F
+// CRC
+#define MLX90614_CRC8POLY       7       /**< CRC polynomial = X8+X2+X1+1 */
 
 
 class MLX90614  {
@@ -67,6 +122,8 @@ class MLX90614  {
   double readAmbientTempC(void);
   double readObjectTempF(void);
   double readAmbientTempF(void);
+  void setEmissivity(float);
+  float getEmissivity(void);
 
  private:
   float readTemp(uint8_t reg);
@@ -124,8 +181,20 @@ float MLX90614::readTemp(uint8_t reg) {
   return temp;
 }
 
-/*********************************************************************/
+void MLX90614::setEmissivity(float emissivity) {
+  uint16_t rawOld = read16(MLX90614_EMISS);
+  uint16_t rawNew = round(emissivity * 65535);
+  if (rawOld != rawNew) {
+    write16(MLX90614_EMISS, 0);
+    write16(MLX90614_EMISS, rawNew);
+  }
+};
 
+float MLX90614::getEmissivity() {
+  return ((float)read16(MLX90614_EMISS)) / 65535.0;
+};
+
+/*********************************************************************/
 uint16_t MLX90614::read16(uint8_t a) {
   uint16_t ret;
 
@@ -140,6 +209,34 @@ uint16_t MLX90614::read16(uint8_t a) {
   uint8_t pec = Wire.read();
 
   return ret;
+}
+
+/**
+ *  \brief            Write a 16 bit value to memory.
+ *  \param [in] cmd   Command to send (register to write to).
+ *  \param [in] data  Value to write.
+ */
+void MLX90614::write16(uint8_t cmd, uint16_t data) {
+    CRC8 crc(MLX90614_CRC8POLY);
+
+    // Build the CRC-8 of all bytes to be sent.
+    crc.crc8(_addr << 1);
+    crc.crc8(cmd);
+    crc.crc8(lowByte(data));
+    uint8_t _crc8 = crc.crc8(highByte(data));
+
+    // Send the slave address then the command.
+    Wire.beginTransmission(_addr);
+    Wire.write(cmd);
+
+    // Write the data low byte first.
+    Wire.write(lowByte(data));
+    Wire.write(highByte(data));
+
+    // Then write the crc.
+    Wire.write(_crc8);
+    Wire.endTransmission(true);
+
 }
 
 MLX90614 mlx = MLX90614();
@@ -159,6 +256,9 @@ MLX90614 mlx = MLX90614();
 #define LCD_BL_PIN 3
 #define LCD_BR_PIN 11
 
+// mlx thermopile settings
+#define MLX_OBJECT_EMISSIVITY 0.98
+
 // trigger pins
 #define TRIGGER_PIN 2
 
@@ -167,6 +267,7 @@ MLX90614 mlx = MLX90614();
 
 // operational settings
 #define REFRESH_TEMP_READING 200
+#define AVERAGING_WINDOW 10
 
 // feature flags
 #define FLAG_MOVING_AVG_ENABLE false
@@ -305,6 +406,7 @@ void setup() {
   laser.begin();
   // set up IR sensor
   mlx.begin();
+  mlx.setEmissivity(MLX_OBJECT_EMISSIVITY);
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2); 
   lcd.home();
