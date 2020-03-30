@@ -101,7 +101,7 @@ void CRC8::crc8Start(uint8_t poly) {
 #define MLX90614_TOMIN 0x21
 #define MLX90614_PWMCTRL 0x22
 #define MLX90614_TARANGE 0x23
-#define MLX90614_EMISS 0x24
+#define MLX90614_EMISS 0x04
 #define MLX90614_CONFIG 0x25
 #define MLX90614_ADDR 0x0E
 #define MLX90614_ID1 0x3C
@@ -217,25 +217,25 @@ uint16_t MLX90614::read16(uint8_t a) {
  *  \param [in] data  Value to write.
  */
 void MLX90614::write16(uint8_t cmd, uint16_t data) {
-    CRC8 crc(MLX90614_CRC8POLY);
+  CRC8 crc(MLX90614_CRC8POLY);
 
-    // Build the CRC-8 of all bytes to be sent.
-    crc.crc8(_addr << 1);
-    crc.crc8(cmd);
-    crc.crc8(lowByte(data));
-    uint8_t _crc8 = crc.crc8(highByte(data));
+  // Build the CRC-8 of all bytes to be sent.
+  crc.crc8(_addr << 1);
+  crc.crc8(cmd);
+  crc.crc8(lowByte(data));
+  uint8_t _crc8 = crc.crc8(highByte(data));
 
-    // Send the slave address then the command.
-    Wire.beginTransmission(_addr);
-    Wire.write(cmd);
+  // Send the slave address then the command.
+  Wire.beginTransmission(_addr);
+  Wire.write(cmd);
 
-    // Write the data low byte first.
-    Wire.write(lowByte(data));
-    Wire.write(highByte(data));
+  // Write the data low byte first.
+  Wire.write(lowByte(data));
+  Wire.write(highByte(data));
 
-    // Then write the crc.
-    Wire.write(_crc8);
-    Wire.endTransmission(true);
+  // Then write the crc.
+  Wire.write(_crc8);
+  Wire.endTransmission(true);
 
 }
 
