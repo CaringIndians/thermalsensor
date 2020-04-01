@@ -101,7 +101,7 @@ void CRC8::crc8Start(uint8_t poly) {
 #define MLX90614_TOMIN 0x21
 #define MLX90614_PWMCTRL 0x22
 #define MLX90614_TARANGE 0x23
-#define MLX90614_EMISS 0x04
+#define MLX90614_EMISS 0x24
 #define MLX90614_CONFIG 0x25
 #define MLX90614_ADDR 0x0E
 #define MLX90614_ID1 0x3C
@@ -110,7 +110,8 @@ void CRC8::crc8Start(uint8_t poly) {
 #define MLX90614_ID4 0x3F
 // CRC
 #define MLX90614_CRC8POLY       7       /**< CRC polynomial = X8+X2+X1+1 */
-
+// Write Delay
+#define MLX90614_WRITE_DELAY 10
 
 class MLX90614  {
  public:
@@ -236,6 +237,9 @@ void MLX90614::write16(uint8_t cmd, uint16_t data) {
   // Then write the crc.
   Wire.write(_crc8);
   Wire.endTransmission(true);
+
+  // Delay for ensuring write
+  delay(MLX90614_WRITE_DELAY);
 
 }
 
