@@ -1,24 +1,56 @@
 /*
- TempSensor is an Arduino based software for reading temperatures
+ Thermal Sensor is an Arduino based software for reading temperatures
  from MLX90614 IR thermopile. 
 
  We use a 16x2 LCD display.  The LiquidCrystal
  library works with all LCD displays that are compatible with the
  Hitachi HD44780 driver. 
 
- The circuit:
- * LCD RS pin to digital pin 12
- * LCD Enable pin to digital pin 11
- * LCD D4 pin to digital pin 5
- * LCD D5 pin to digital pin 4
- * LCD D6 pin to digital pin 3
- * LCD D7 pin to digital pin 2
- * LCD R/W pin to ground
- * 10K resistor:
- * ends to +5V and ground
- * wiper to LCD VO pin (pin 3)
+ We use MLX90614 as an IR based thermopile sensor.
 
 */
+/***********************************************************************************************//**
+ *  \brief      Thermal Sensor device - CPP Source file
+ *  \par
+ *  \par        Details
+ *              Thermal Sensor is an Arduino based software for reading temperatures
+ *              from MLX90614 IR thermopile.
+
+ *              We use a 16x2 LCD display.  The LiquidCrystal
+ *              library works with all LCD displays that are compatible with the
+ *              Hitachi HD44780 driver.
+
+ *              We use MLX90614 as an IR based thermopile sensor.
+ *
+ *  \li         Sleep mode is not implemented yet.
+ *
+ *  \note       THIS IS ONLY A PARTIAL RELEASE. THIS DEVICE IS CURRENTLY UNDERGOING
+ *              ACTIVE DEVELOPMENT AND IS STILL MISSING SOME IMPORTANT FEATURES. PLEASE KEEP
+ *              THIS IN MIND IF YOU DECIDE TO USE THIS PARTICULAR CODE FOR ANYTHING.
+ *
+ *  \file       TempSensor.ino
+ *  \author     Krishna Durai <krishnadurai20@gmail.com>
+ *  \version    0.1
+ *  \date       2020
+ *  \copyright  Copyright &copy; 2020 Krishna Durai.  All right reserved.
+ *
+ *  \par        License
+ *              This program is free software; you can redistribute it and/or modify it under
+ *              the terms of the GNU Lesser General Public License as published by the Free
+ *              Software Foundation; either version 2.1 of the License, or (at your option)
+ *              any later version.
+ *  \par
+ *              This Program is distributed in the hope that it will be useful, but WITHOUT ANY
+ *              WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+ *              PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details
+ *              at http://www.gnu.org/copyleft/gpl.html
+ *  \par
+ *              You should have received a copy of the GNU Lesser General Public License along
+ *              with this library; if not, write to the Free Software Foundation, Inc.,
+ *              51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ *
+ *//***********************************************************************************************/
+
 
 // include the library code:
 #include <LiquidCrystal.h>
@@ -32,8 +64,6 @@
 
 #define CRC8_DEFAULTPOLY  7
 
-// taken from https://github.com/jfitter/MLX90614
-// TODO (krishnadurai): Comply with license
 class CRC8 {
   public:
     CRC8(uint8_t polynomial = CRC8_DEFAULTPOLY);
@@ -78,8 +108,20 @@ void CRC8::crc8Start(uint8_t poly) {
     _crc = 0;
 }
 
-// taken from https://github.com/adafruit/Adafruit-MLX90614-Library
-// TODO (krishnadurai): Comply with license
+/***************************************************
+  This is a library for the MLX90614 Temp Sensor
+  Designed specifically to work with the MLX90614 sensors in the
+  adafruit shop
+  ----> https://www.adafruit.com/products/1748
+  ----> https://www.adafruit.com/products/1749
+  These sensors use I2C to communicate, 2 pins are required to
+  interface
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit and open-source hardware by purchasing
+  products from Adafruit!
+  Written by Limor Fried/Ladyada for Adafruit Industries.
+  BSD license, all text above must be included in any redistribution
+ ****************************************************/
 #if (ARDUINO >= 100)
  #include "Arduino.h"
 #else
