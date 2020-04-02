@@ -226,7 +226,7 @@ float MLX90614::readTemp(uint8_t reg) {
 
 void MLX90614::setEmissivity(float emissivity) {
   uint16_t rawOld = read16(MLX90614_EMISS);
-  uint16_t rawNew = round(emissivity * 65535);
+  uint16_t rawNew = round((emissivity * 65536) - 1);
   if (rawOld != rawNew) {
     write16(MLX90614_EMISS, 0);
     write16(MLX90614_EMISS, rawNew);
@@ -234,7 +234,7 @@ void MLX90614::setEmissivity(float emissivity) {
 };
 
 float MLX90614::getEmissivity() {
-  return ((float)read16(MLX90614_EMISS)) / 65535.0;
+  return ((float)read16(MLX90614_EMISS) + 1) / 65536.0;
 };
 
 /*********************************************************************/
