@@ -285,7 +285,20 @@ void MLX90614::write16(uint8_t cmd, uint16_t data) {
 
 }
 
+class Calibrator {
+  //TODO(krishnadurai): This class is stub.
+  public:
+    void begin(){
+    }
+    bool readObjectTempC(){
+      return 0;
+    }
+    bool readObjectTempF(){
+      return 0;
+    }
+};
 MLX90614 mlx = MLX90614();
+Calibrator calib = Calibrator();
 
 // lcd constants
 #define LCD_BRIGHTNESS_HIGH 1
@@ -303,7 +316,8 @@ MLX90614 mlx = MLX90614();
 #define LCD_BR_PIN 11
 
 // mlx thermopile settings
-#define MLX_OBJECT_EMISSIVITY 0.98
+#define MLX_SKIN_EMISSIVITY 0.98
+#define MLX_ICE_EMISSIVITY 0.96
 
 // trigger pins
 #define TRIGGER_PIN 2
@@ -314,6 +328,14 @@ MLX90614 mlx = MLX90614();
 // operational settings
 #define REFRESH_TEMP_READING 200
 #define AVERAGING_WINDOW 10
+#define MODE_CHANGE_NOTIF_TIME 3000
+#define CALIBRATION_STEP_NOTIF_TIME 1500
+
+// operational modes
+#define MEASUREMENT 0
+#define CALIBRATION 1
+
+
 
 // feature flags
 #define FLAG_MOVING_AVG_ENABLE false
@@ -336,6 +358,17 @@ class LiquidCrystalBacklight{
     void noDisplay(){
       digitalWrite(_backlight_pin, LOW);
       analogWrite(_brightness_pin, LCD_BRIGHTNESS_LOW);
+    }
+};
+
+class OperationMode {
+  // TODO(krishnadurai): This class is a stub.
+  // This might be replaced with an interuppt based logic.
+  public:
+    void begin(){
+    }
+    bool readModeStatus(){
+      return CALIBRATION;
     }
 };
 
@@ -362,6 +395,9 @@ class Laser {
       digitalWrite(LASER_PIN, LOW);
     }
 };
+
+// initialize operation mode
+OperationMode operationMode;
 
 // initialize trigger
 Trigger trigger;
@@ -452,20 +488,63 @@ void setup() {
   laser.begin();
   // set up IR sensor
   mlx.begin();
-  mlx.setEmissivity(MLX_OBJECT_EMISSIVITY);
+  mlx.setEmissivity(MLX_SKIN_EMISSIVITY);
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2); 
   lcd.home();
 }
 
+void calibrationStep(string stepName){
+  // TODO(krishnadurai): Maybe pass the storage locations for
+  // temperatures recorded.
+
+  // Display stepName
+  lcd.print(stepName);
+  lcd_backlight.display();
+  lcd.display();
+  delay(CALIBRATION_STEP_NOTIF_TIME);
+
+  mlx.setEmissivity(MLX_ICE_EMISSIVITY);
+
+  while(trigger.readTriggerStatus() != LOW) {
+    // TODO(krishnadurai): Calibration logic.
+    // Fetch temperature from both IR sensor and Calibration device.
+    // Display temperature of both on screen.
+  }
+
+  // TODO(krishnadurai): Store IR sensor and Calibration device
+  // temperatures in RAM
+}
+
+void handleCalibrationMode(){
+  // Display CALIB MODE
+  lcd.print("CALIB MODE");
+  lcd_backlight.display();
+  lcd.display();
+  delay(MODE_CHANGE_NOTIF_TIME);
+
+  calibrationStep("1: ICE BATH");
+  calibrationStep("2: HUMAN SKIN");
+
+  // TODO(krishnadurai): Apply straight line equation to stored values
+
+  // TODO(krishnadurai): Store computed vaules in EEPROM
+
+  lcd.print("CALIBRATION");
+  lcd.print("COMPLETE");
+  lcd_backlight.display();
+  lcd.display();
+  delay(MODE_CHANGE_NOTIF_TIME);
+}
 
 MovingAverage avg_celsius;
 MovingAverage avg_fahrenheit;
 
-void loop() {
+void handleMeasurementMode(){
   float temp_celcius;
   float temp_fahrenheit;
-
+  float display_temp_celcius;
+  float display_temp_fahrenheit;
   switch (trigger.readTriggerStatus()){
     case LOW:
       // Start laser
@@ -478,23 +557,19 @@ void loop() {
       if (FLAG_MOVING_AVG_ENABLE) {
         avg_celsius.pushValue(temp_celcius);
         avg_fahrenheit.pushValue(temp_fahrenheit);
+        display_temp_celcius = avg_celsius.getAverage();
+        display_temp_fahrenheit = avg_fahrenheit.getAverage();
+      }
+      else {
+        display_temp_celcius = temp_celcius;
+        display_temp_fahrenheit = temp_fahrenheit;
       }
 
       lcd.setCursor(0,0);
-      if (FLAG_MOVING_AVG_ENABLE) {
-        lcd.print(avg_celsius.getAverage(), LCD_TEMP_PRECISION);
-      }
-      else {
-        lcd.print(temp_celcius, LCD_TEMP_PRECISION);
-      }
+      lcd.print(display_temp_celcius, LCD_TEMP_PRECISION);
       lcd.print(" C");
       lcd.setCursor(0,1);
-      if (FLAG_MOVING_AVG_ENABLE) {
-        lcd.print(avg_fahrenheit.getAverage(), LCD_TEMP_PRECISION);
-      }
-      else{
-        lcd.print(temp_fahrenheit, LCD_TEMP_PRECISION);
-      }
+      lcd.print(display_temp_fahrenheit, LCD_TEMP_PRECISION);
       lcd.print(" F");
       lcd_backlight.display();
       lcd.display();
@@ -510,4 +585,14 @@ void loop() {
       break;
   }
   delay(REFRESH_TEMP_READING);
+}
+
+void loop() {
+
+  switch (operationMode.readModeStatus()){
+    case MEASUREMENT:
+      handleMeasurementMode();
+    case CALIBRATION:
+      handleCalibrationMode();
+  }
 }
